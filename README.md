@@ -1,4 +1,5 @@
 Team ID: CAS01
+
 PS ID: AIML02
 
 Problem Statement:
@@ -40,21 +41,26 @@ Uses Elasticsearch for quick searches and filtering of resumes based on recruite
 
 
 Tools Used in Automated Resume Screening System
+
 1️ Programming & Development
 Python – Main programming language
 Flask / FastAPI – Backend API development
+
 2️ Natural Language Processing (NLP)
 spaCy – Named Entity Recognition (NER) for extracting details
 BERT (Bidirectional Encoder Representations from Transformers) – Resume and job description similarity matching
 scikit-learn – Machine learning models for ranking resumes
 TF-IDF / Word Embeddings – Feature extraction
+
 3️ Resume & Job Description Parsing
 PyPDF2 / pdfplumber – Extract text from PDFs
 docx2txt – Extract text from DOCX files
 Tesseract OCR – Extract text from images (scanned resumes)
+
 4️ Data Storage & Search
 PostgreSQL / MongoDB – Database for storing resumes and job descriptions
 Elasticsearch – Fast search and retrieval of resumes
+
 5️ Deployment & Version Control
 Docker – Containerization for easy deployment
 GitHub / GitLab – Version control for managing project updates
