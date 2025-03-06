@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume Screener</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h2>🚀 AI Resume Screener</h2>
+
+        <div class="section">
+            <label>Job Description:</label>
+            <textarea id="jobDescription" placeholder="Paste job description here..."></textarea>
+        </div>
+
+        <div class="section">
+            <label>Upload Resumes:</label>
+            <input type="file" id="resumeFiles" multiple>
+            <button id="uploadButton">Screen Resumes</button>
+        </div>
+
+        <div id="loading">⏳ Screening resumes... Please wait</div>
+
+        <div class="section">
+            <h3>🏆 Ranked Candidates</h3>
+            <ul id="candidateList"></ul>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
