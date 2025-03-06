@@ -1,131 +1,180 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import os
 import PyPDF2
-import docx
 import re
-from collections import Counter
+from werkzeug.utils import secure_filename
+import os
 
 app = Flask(__name__)
 CORS(app)  
 
-UPLOAD_FOLDER = "uploads"
-ALLOWED_EXTENSIONS = {"pdf", "txt", "docx"}
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-
-stop_words = set([
-    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he',
-    'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'were', 'will', 'with'
-])
-
-common_skills = [
-    'javascript', 'python', 'java', 'sql', 'html', 'css', 'react', 'node', 'typescript',
-    'aws', 'docker', 'git', 'agile', 'scrum', 'management', 'leadership', 'communication',
-    'experience', 'years', 'software', 'engineer', 'developer', 'data', 'analysis'
-]
-
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+STOP_WORDS = {
+    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he', 'in', 'is', 'it',
+    'its', 'of', 'on', 'that', 'the', 'to', 'was', 'were', 'will', 'with'
+}
 
 def clean_text(text):
-    """Preprocess text: lowercase, remove punctuation, and stopwords"""
     text = text.lower()
-    text = re.sub(r"[^\w\s]", "", text)  
+    text = re.sub(r'[^\w\s]', '', text)
+    text = re.sub(r'\s+', ' ', text).strip()
     words = text.split()
-    return " ".join([word for word in words if word not in stop_words])
+    return [stem_word(word) for word in words if word not in STOP_WORDS]
 
-def extract_text_from_file(file_path):
-    """Extract text from PDF, TXT, or DOCX"""
-    text = ""
-    extension = file_path.rsplit(".", 1)[1].lower()
+def stem_word(word):
+    if word.endswith('ing'):
+        return word[:-3]
+    if word.endswith('ed'):
+        return word[:-2]
+    if word.endswith('s') and not word.endswith('ss'):
+        return word[:-1]
+    return word
 
-    if extension == "txt":
-        with open(file_path, "r", encoding="utf-8") as f:
-            text = f.read()
+def extract_key_skills(text):
+    common_skills = [
+        'javascript', 'python', 'java', 'sql', 'html', 'css', 'react', 'node', 'typescript',
+        'aws', 'docker', 'git', 'agile', 'scrum', 'management', 'leadership', 'communication',
+        'experience', 'years', 'software', 'engineer', 'developer', 'data', 'analysis'
+    ]
+    words = clean_text(text)
+    return list(set(word for word in words if word in common_skills))
+
+def extract_text_from_pdf(file):
+    try:
+        reader = PyPDF2.PdfReader(file)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text() + " "
+        return text.strip()
+    except Exception as e:
+        print(f"Error parsing PDF: {e}")
+        return ""
+
+def calculate_scores(job_desc, resume_text):
+    job_words = set(clean_text(job_desc))
+    resume_words = clean_text(resume_text)
+    word_freq = {}
+    matched_keywords = []
+
+    for word in resume_words:
+        word_freq[word] = word_freq.get(word, 0) + 1
+
+    similarity_score = 0
+    for word in job_words:
+        if word in word_freq:
+            similarity_score += word_freq[word]
+            matched_keywords.append(word)
     
-    elif extension == "pdf":
-        with open(file_path, "rb") as f:
-            pdf_reader = PyPDF2.PdfReader(f)
-            for page in pdf_reader.pages:
-                text += page.extract_text() + " "
+    max_similarity_score = len(job_words) * 5
+    similarity_score = min((similarity_score / max_similarity_score) * 100, 100)
 
-    elif extension == "docx":
-        doc = docx.Document(file_path)
-        for para in doc.paragraphs:
-            text += para.text + " "
+    ats_score = 0
+    keyword_match_weight = 0.6
+    experience_weight = 0.3
+    extra_weight = 0.1
 
-    return clean_text(text)
+    keyword_match_score = (len(matched_keywords) / len(job_words)) * 100
+    ats_score += keyword_match_score * keyword_match_weight
 
-def calculate_similarity(job_desc, resume_text):
-    """Compute similarity score between job description and resume"""
-    job_words = job_desc.split()
-    resume_words = resume_text.split()
+    experience_regex = r'(\d+)\s*(years|yrs|year)'
+    job_experience = [int(m.group(1)) for m in re.finditer(experience_regex, job_desc, re.IGNORECASE)]
+    resume_experience = [int(m.group(1)) for m in re.finditer(experience_regex, resume_text, re.IGNORECASE)]
+    required_years = max(job_experience) if job_experience else 0
+    candidate_years = max(resume_experience) if resume_experience else 0
+    experience_score = (min((candidate_years / required_years) * 100, 100) if required_years > 0 else 50)
+    ats_score += experience_score * experience_weight
 
-    job_word_count = Counter(job_words)
-    resume_word_count = Counter(resume_words)
+    resume_length_score = min((len(resume_words) / 200) * 100, 100)
+    ats_score += resume_length_score * extra_weight
 
-    common_words = set(job_words) & set(resume_words)
+    return {
+        "similarityScore": round(similarity_score),
+        "atsScore": round(min(ats_score, 100)),
+        "matchedKeywords": matched_keywords,
+        "experienceYears": candidate_years
+    }
 
-    if not common_words:
-        return 0  # No similarity
+def generate_feedback(job_desc, resume_text, scores):
+    job_words = set(clean_text(job_desc))
+    resume_words = clean_text(resume_text)
+    missing_keywords = [word for word in job_words if word not in resume_words][:3]
+    unique_resume_words = [word for word in resume_words if word not in job_words][:3]
 
-    match_score = sum(min(job_word_count[word], resume_word_count[word]) for word in common_words)
-    similarity = round((match_score / max(len(job_words), 1)) * 100, 2)  
-    
-    return similarity
+    strengths, weaknesses, suggestions = [], [], []
 
-def extract_experience(text):
-    """Extract years of experience from text"""
-    experience_regex = re.findall(r"(\d+)\s*(years|yrs|year)", text)
-    years = [int(match[0]) for match in experience_regex if match[0].isdigit()]
-    return max(years) if years else 0 
+    if scores["matchedKeywords"]:
+        top_matches = " and ".join(scores["matchedKeywords"][:2])
+        strengths.append(f"Your resume aligns well with the job through keywords like {top_matches}.")
+    if scores["experienceYears"] > 0:
+        strengths.append(f"You highlight {scores['experienceYears']} years of experience, adding credibility.")
+    if unique_resume_words:
+        strengths.append(f"The inclusion of '{unique_resume_words[0]}' sets your resume apart.")
+
+    if missing_keywords:
+        missing = " and ".join(missing_keywords[:2])
+        weaknesses.append(f"Your resume misses critical job terms such as {missing}.")
+    required_years = max([int(m.group(1)) for m in re.finditer(r'(\d+)\s*(years|yrs|year)', job_desc, re.IGNORECASE)], default=0)
+    if required_years > 0 and scores["experienceYears"] < required_years:
+        weaknesses.append(f"With {scores['experienceYears']} years, you fall {required_years - scores['experienceYears']} year(s) short.")
+    elif scores["experienceYears"] == 0 and required_years > 0:
+        weaknesses.append(f"No experience years specified, while the job expects {required_years} years.")
+    if len(resume_words) < 75:
+        weaknesses.append(f"The resume is brief ({len(resume_words)} words), potentially lacking detail.")
+
+    if missing_keywords:
+        suggestions.append(f"Add '{missing_keywords[0]}' to your resume to better match the job.")
+    if scores["experienceYears"] > 0:
+        suggestions.append(f"Elaborate on your {scores['experienceYears']}-year experience with examples.")
+    elif scores["experienceYears"] == 0:
+        suggestions.append("Include specific years or project details to quantify your experience.")
+    if unique_resume_words:
+        suggestions.append(f"Emphasize how '{unique_resume_words[0]}' relates to the job.")
+    elif len(resume_words) < 100:
+        suggestions.append(f"Expand your resume (currently {len(resume_words)} words) with more details.")
+
+    return {
+        "strengths": strengths or [f"Your resume has some content ({len(resume_words)} words), but could emphasize skills more."],
+        "weaknesses": weaknesses or [f"No major gaps, but it could highlight terms like '{list(job_words)[0] or 'relevance'}'."],
+        "suggestions": suggestions or [f"Consider adding details to align with '{list(job_words)[0] or 'job needs'}'."]
+    }
 
 @app.route("/screen", methods=["POST"])
 def screen_resumes():
-    if "jobDescription" not in request.form or "resumes" not in request.files:
-        return jsonify({"error": "Missing job description or resumes"}), 400
+    if "jobDescription" not in request.form:
+        return jsonify({"error": "Job description is required"}), 400
+    if "resumes" not in request.files:
+        return jsonify({"error": "No resumes uploaded"}), 400
 
-    job_desc = clean_text(request.form["jobDescription"])
+    job_desc = request.form["jobDescription"]
     files = request.files.getlist("resumes")
-
-    if not job_desc:
-        return jsonify({"error": "Job description is empty"}), 400
-
     candidates = []
-    
+
     for file in files:
-        if file and allowed_file(file.filename):
-            file_path = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
-            file.save(file_path)
-            
-            resume_text = extract_text_from_file(file_path)
-            if not resume_text:
-                continue
+        filename = secure_filename(file.filename)
+        if filename.endswith(".txt"):
+            text = file.read().decode("utf-8")
+        elif filename.endswith(".pdf"):
+            text = extract_text_from_pdf(file)
+        else:
+            continue
 
-            similarity_score = calculate_similarity(job_desc, resume_text)
-            experience_years = extract_experience(resume_text)
-            
-            matched_keywords = [word for word in common_skills if word in resume_text]
-
-            ats_score = round(similarity_score * 0.6 + experience_years * 0.3 + len(matched_keywords) * 0.1, 2)
-
+        if text and text.strip():
+            scores = calculate_scores(job_desc, text)
+            feedback = generate_feedback(job_desc, text, scores)
             candidates.append({
-                "name": file.filename,
-                "similarityScore": similarity_score,
-                "atsScore": ats_score,
-                "experienceYears": experience_years,
-                "matchedKeywords": matched_keywords
+                "name": filename,
+                "similarityScore": scores["similarityScore"],
+                "atsScore": scores["atsScore"],
+                "matchedKeywords": scores["matchedKeywords"],
+                "experienceYears": scores["experienceYears"],
+                "feedback": feedback
             })
 
     if not candidates:
-        return jsonify({"message": "No suitable candidates found."}), 200
+        return jsonify({"error": "No readable resumes found"}), 400
 
-    candidates.sort(key=lambda x: (-x["atsScore"], -x["similarityScore"]))
-    
+    candidates.sort(key=lambda x: (x["atsScore"], x["similarityScore"]), reverse=True)
     return jsonify({"candidates": candidates})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
