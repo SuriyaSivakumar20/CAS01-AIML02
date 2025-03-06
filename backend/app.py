@@ -3,41 +3,20 @@ from flask_cors import CORS
 import PyPDF2
 import re
 from werkzeug.utils import secure_filename
-import os
+import spacy
 
 app = Flask(__name__)
-CORS(app)  
+CORS(app) 
 
 
-STOP_WORDS = {
-    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he', 'in', 'is', 'it',
-    'its', 'of', 'on', 'that', 'the', 'to', 'was', 'were', 'will', 'with'
+nlp = spacy.load("en_core_web_lg")
+
+
+COMMON_SKILLS = {
+    'javascript', 'python', 'java', 'sql', 'html', 'css', 'react', 'node', 'typescript',
+    'aws', 'docker', 'git', 'agile', 'scrum', 'management', 'leadership', 'communication',
+    'experience', 'years', 'software', 'engineer', 'developer', 'data', 'analysis'
 }
-
-def clean_text(text):
-    text = text.lower()
-    text = re.sub(r'[^\w\s]', '', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    words = text.split()
-    return [stem_word(word) for word in words if word not in STOP_WORDS]
-
-def stem_word(word):
-    if word.endswith('ing'):
-        return word[:-3]
-    if word.endswith('ed'):
-        return word[:-2]
-    if word.endswith('s') and not word.endswith('ss'):
-        return word[:-1]
-    return word
-
-def extract_key_skills(text):
-    common_skills = [
-        'javascript', 'python', 'java', 'sql', 'html', 'css', 'react', 'node', 'typescript',
-        'aws', 'docker', 'git', 'agile', 'scrum', 'management', 'leadership', 'communication',
-        'experience', 'years', 'software', 'engineer', 'developer', 'data', 'analysis'
-    ]
-    words = clean_text(text)
-    return list(set(word for word in words if word in common_skills))
 
 def extract_text_from_pdf(file):
     try:
@@ -50,30 +29,35 @@ def extract_text_from_pdf(file):
         print(f"Error parsing PDF: {e}")
         return ""
 
+def extract_key_skills(text):
+    doc = nlp(text.lower())
+    skills = set()
+    for token in doc:
+        if token.text in COMMON_SKILLS and not token.is_stop:
+            skills.add(token.text)
+    for ent in doc.ents:
+        if ent.label_ in ["SKILL", "ORG", "DATE"] and ent.text.lower() in COMMON_SKILLS:
+            skills.add(ent.text.lower())
+    return list(skills)
+
 def calculate_scores(job_desc, resume_text):
-    job_words = set(clean_text(job_desc))
-    resume_words = clean_text(resume_text)
-    word_freq = {}
-    matched_keywords = []
+    job_doc = nlp(job_desc)
+    resume_doc = nlp(resume_text)
 
-    for word in resume_words:
-        word_freq[word] = word_freq.get(word, 0) + 1
+  
+    similarity_score = min(round(job_doc.similarity(resume_doc) * 100), 100)
 
-    similarity_score = 0
-    for word in job_words:
-        if word in word_freq:
-            similarity_score += word_freq[word]
-            matched_keywords.append(word)
     
-    max_similarity_score = len(job_words) * 5
-    similarity_score = min((similarity_score / max_similarity_score) * 100, 100)
+    job_skills = set(extract_key_skills(job_desc))
+    resume_skills = set(extract_key_skills(resume_text))
+    matched_keywords = job_skills.intersection(resume_skills)
 
     ats_score = 0
     keyword_match_weight = 0.6
     experience_weight = 0.3
     extra_weight = 0.1
 
-    keyword_match_score = (len(matched_keywords) / len(job_words)) * 100
+    keyword_match_score = (len(matched_keywords) / len(job_skills)) * 100 if job_skills else 0
     ats_score += keyword_match_score * keyword_match_weight
 
     experience_regex = r'(\d+)\s*(years|yrs|year)'
@@ -84,58 +68,60 @@ def calculate_scores(job_desc, resume_text):
     experience_score = (min((candidate_years / required_years) * 100, 100) if required_years > 0 else 50)
     ats_score += experience_score * experience_weight
 
-    resume_length_score = min((len(resume_words) / 200) * 100, 100)
+    resume_length_score = min((len(resume_text.split()) / 200) * 100, 100)
     ats_score += resume_length_score * extra_weight
 
     return {
-        "similarityScore": round(similarity_score),
+        "similarityScore": similarity_score,
         "atsScore": round(min(ats_score, 100)),
-        "matchedKeywords": matched_keywords,
+        "matchedKeywords": list(matched_keywords),
         "experienceYears": candidate_years
     }
 
 def generate_feedback(job_desc, resume_text, scores):
-    job_words = set(clean_text(job_desc))
-    resume_words = clean_text(resume_text)
-    missing_keywords = [word for word in job_words if word not in resume_words][:3]
-    unique_resume_words = [word for word in resume_words if word not in job_words][:3]
+    job_doc = nlp(job_desc.lower())
+    resume_doc = nlp(resume_text.lower())
+    job_skills = set(extract_key_skills(job_desc))
+    resume_skills = set(extract_key_skills(resume_text))
+    missing_keywords = list(job_skills - resume_skills)[:3]
+    unique_resume_skills = list(resume_skills - job_skills)[:3]
 
     strengths, weaknesses, suggestions = [], [], []
 
     if scores["matchedKeywords"]:
         top_matches = " and ".join(scores["matchedKeywords"][:2])
-        strengths.append(f"Your resume aligns well with the job through keywords like {top_matches}.")
+        strengths.append(f"Your resume aligns well with the job through skills like {top_matches}.")
     if scores["experienceYears"] > 0:
-        strengths.append(f"You highlight {scores['experienceYears']} years of experience, adding credibility.")
-    if unique_resume_words:
-        strengths.append(f"The inclusion of '{unique_resume_words[0]}' sets your resume apart.")
+        strengths.append(f"You showcase {scores['experienceYears']} years of experience, adding credibility.")
+    if unique_resume_skills:
+        strengths.append(f"Unique skill '{unique_resume_skills[0]}' sets your resume apart.")
 
     if missing_keywords:
         missing = " and ".join(missing_keywords[:2])
-        weaknesses.append(f"Your resume misses critical job terms such as {missing}.")
+        weaknesses.append(f"Your resume misses key job skills like {missing}.")
     required_years = max([int(m.group(1)) for m in re.finditer(r'(\d+)\s*(years|yrs|year)', job_desc, re.IGNORECASE)], default=0)
     if required_years > 0 and scores["experienceYears"] < required_years:
-        weaknesses.append(f"With {scores['experienceYears']} years, you fall {required_years - scores['experienceYears']} year(s) short.")
+        weaknesses.append(f"With {scores['experienceYears']} years, you’re {required_years - scores['experienceYears']} year(s) short.")
     elif scores["experienceYears"] == 0 and required_years > 0:
-        weaknesses.append(f"No experience years specified, while the job expects {required_years} years.")
-    if len(resume_words) < 75:
-        weaknesses.append(f"The resume is brief ({len(resume_words)} words), potentially lacking detail.")
+        weaknesses.append(f"No experience years listed; job expects {required_years} years.")
+    if len(resume_text.split()) < 75:
+        weaknesses.append(f"Your resume is brief ({len(resume_text.split())} words), possibly lacking detail.")
 
     if missing_keywords:
-        suggestions.append(f"Add '{missing_keywords[0]}' to your resume to better match the job.")
+        suggestions.append(f"Add '{missing_keywords[0]}' to better match the job.")
     if scores["experienceYears"] > 0:
-        suggestions.append(f"Elaborate on your {scores['experienceYears']}-year experience with examples.")
+        suggestions.append(f"Highlight your {scores['experienceYears']}-year experience with examples.")
     elif scores["experienceYears"] == 0:
-        suggestions.append("Include specific years or project details to quantify your experience.")
-    if unique_resume_words:
-        suggestions.append(f"Emphasize how '{unique_resume_words[0]}' relates to the job.")
-    elif len(resume_words) < 100:
-        suggestions.append(f"Expand your resume (currently {len(resume_words)} words) with more details.")
+        suggestions.append("Quantify your experience with years or projects.")
+    if unique_resume_skills:
+        suggestions.append(f"Emphasize how '{unique_resume_skills[0]}' fits the role.")
+    elif len(resume_text.split()) < 100:
+        suggestions.append(f"Expand your resume (currently {len(resume_text.split())} words) with more details.")
 
     return {
-        "strengths": strengths or [f"Your resume has some content ({len(resume_words)} words), but could emphasize skills more."],
-        "weaknesses": weaknesses or [f"No major gaps, but it could highlight terms like '{list(job_words)[0] or 'relevance'}'."],
-        "suggestions": suggestions or [f"Consider adding details to align with '{list(job_words)[0] or 'job needs'}'."]
+        "strengths": strengths or ["Your resume has content but could highlight skills more clearly."],
+        "weaknesses": weaknesses or [f"Minor gaps; consider adding skills like '{list(job_skills)[0] if job_skills else 'relevance'}'."],
+        "suggestions": suggestions or ["Add more specific details to align with the job."]
     }
 
 @app.route("/screen", methods=["POST"])
