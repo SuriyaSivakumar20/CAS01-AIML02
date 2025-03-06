@@ -6,10 +6,9 @@
     <title>AI Resume Screener Pro with ATS & NLP</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-   
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
     <script>
-        
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
     </script>
 </head>
@@ -29,6 +28,7 @@
                 <span>📤 Drag & drop resumes or click to upload (.txt or .pdf)</span>
             </div>
             <div class="file-list" id="fileList"></div>
+            <div class="resume-count" id="resumeCount">0 resumes uploaded</div>
             <button onclick="screenResumes()">Screen Resumes</button>
         </div>
         <div id="loading">⏳ Screening resumes... Please wait</div>
@@ -37,6 +37,7 @@
             <ul class="candidate-list" id="candidateList"></ul>
         </div>
     </div>
+    <div id="feedbackBox" class="feedback-box"></div>
     <script src="script.js"></script>
 </body>
 </html>

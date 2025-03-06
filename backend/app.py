@@ -16,12 +16,10 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-
 stop_words = set([
     'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he',
     'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'were', 'will', 'with'
 ])
-
 
 common_skills = [
     'javascript', 'python', 'java', 'sql', 'html', 'css', 'react', 'node', 'typescript',
@@ -33,21 +31,21 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def clean_text(text):
-    """ Preprocess text: lowercase, remove punctuation, and stopwords """
+    """Preprocess text: lowercase, remove punctuation, and stopwords"""
     text = text.lower()
     text = re.sub(r"[^\w\s]", "", text)  
     words = text.split()
     return " ".join([word for word in words if word not in stop_words])
 
 def extract_text_from_file(file_path):
-    """ Extract text from PDF, TXT, or DOCX """
+    """Extract text from PDF, TXT, or DOCX"""
     text = ""
     extension = file_path.rsplit(".", 1)[1].lower()
 
     if extension == "txt":
         with open(file_path, "r", encoding="utf-8") as f:
             text = f.read()
-
+    
     elif extension == "pdf":
         with open(file_path, "rb") as f:
             pdf_reader = PyPDF2.PdfReader(f)
@@ -62,7 +60,7 @@ def extract_text_from_file(file_path):
     return clean_text(text)
 
 def calculate_similarity(job_desc, resume_text):
-    """ Compute similarity score between job description and resume """
+    """Compute similarity score between job description and resume"""
     job_words = job_desc.split()
     resume_words = resume_text.split()
 
@@ -72,7 +70,7 @@ def calculate_similarity(job_desc, resume_text):
     common_words = set(job_words) & set(resume_words)
 
     if not common_words:
-        return 0 
+        return 0  # No similarity
 
     match_score = sum(min(job_word_count[word], resume_word_count[word]) for word in common_words)
     similarity = round((match_score / max(len(job_words), 1)) * 100, 2)  
@@ -80,10 +78,10 @@ def calculate_similarity(job_desc, resume_text):
     return similarity
 
 def extract_experience(text):
-    """ Extract years of experience from text """
+    """Extract years of experience from text"""
     experience_regex = re.findall(r"(\d+)\s*(years|yrs|year)", text)
     years = [int(match[0]) for match in experience_regex if match[0].isdigit()]
-    return max(years) if years else 0  
+    return max(years) if years else 0 
 
 @app.route("/screen", methods=["POST"])
 def screen_resumes():
