@@ -21,7 +21,6 @@ resumeFiles.addEventListener("change", function () {
     resumeCount.textContent = `${files.length} resumes uploaded`;
     fileUpload.classList.add("uploaded");
 
-    
     for (let i = 0; i < files.length; i += 4) {
         const row = document.createElement("div");
         row.className = "file-row";
@@ -119,10 +118,13 @@ async function screenResumes() {
                 <div>
                     <span class="score">Similarity: ${candidate.similarityScore}%</span>
                     <span class="ats-score">ATS: ${candidate.atsScore}%</span>
+                    <span class="job-fit">Job Fit: ${candidate.jobFit}%</span>
                 </div>
                 <div class="candidate-details">
                     <p><strong>Matched Keywords:</strong> ${candidate.matchedKeywords.length ? candidate.matchedKeywords.join(', ') : 'None'}</p>
                     <p><strong>Experience:</strong> ${candidate.experienceYears} years</p>
+                    <p><strong>Summary:</strong> ${candidate.summary}</p>
+                    <p><strong>Tone:</strong> ${candidate.tone}</p>
                 </div>
             `;
             li.addEventListener('click', () => {
@@ -135,6 +137,8 @@ async function screenResumes() {
                         <ul>${candidate.feedback.weaknesses.map(w => `<li>${w}</li>`).join('')}</ul>
                         <p class="suggestions"><strong>Suggestions:</strong></p>
                         <ul>${candidate.feedback.suggestions.map(s => `<li>${s}</li>`).join('')}</ul>
+                        <p class="skill-gaps"><strong>Skill Gaps:</strong></p>
+                        <ul>${candidate.feedback.skillGaps.map(g => `<li>${g}</li>`).join('')}</ul>
                     `;
                     feedbackBox.classList.add('active');
                 } else {

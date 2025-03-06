@@ -5,25 +5,50 @@ import re
 from werkzeug.utils import secure_filename
 import spacy
 import os
+from textblob import TextBlob
+from sklearn.linear_model import LogisticRegression
+import numpy as np
 
 app = Flask(__name__)
-CORS(app)  
-
+CORS(app)
 
 nlp = spacy.load("en_core_web_lg")
-
-
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
 if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)  
+    os.makedirs(UPLOAD_FOLDER)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
 
 COMMON_SKILLS = {
     'javascript', 'python', 'java', 'sql', 'html', 'css', 'react', 'node', 'typescript',
     'aws', 'docker', 'git', 'agile', 'scrum', 'management', 'leadership', 'communication',
     'experience', 'years', 'software', 'engineer', 'developer', 'data', 'analysis'
 }
+
+SKILL_RESOURCES = {
+    "python": "Learn Python on Codecademy (https://www.codecademy.com/learn/learn-python-3)",
+    "aws": "AWS Certification on Coursera (https://www.coursera.org/professional-certificates/aws-cloud-technology-consultant)",
+    "sql": "SQL Basics on Khan Academy (https://www.khanacademy.org/computing/computer-programming/sql)",
+    "javascript": "JavaScript Tutorial on freeCodeCamp (https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/)"
+}
+
+
+X_train = np.array([
+    [85, 5, 12], 
+    [60, 2, 5],   
+    [90, 7, 15],  
+    [45, 1, 3],   
+    [75, 4, 8],   
+    [30, 0, 2],    
+    [80, 3, 10],  
+    [55, 2, 4],    
+    [95, 6, 14],   
+    [70, 3, 7],    
+    [40, 1, 3],   
+    [65, 2, 6]     
+])
+y_train = np.array([1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0])
+job_fit_model = LogisticRegression().fit(X_train, y_train)
+
 
 def extract_text_from_pdf(filepath):
     try:
@@ -56,14 +81,37 @@ def extract_key_skills(text):
             skills.add(ent.text.lower())
     return list(skills)
 
+def summarize_resume(resume_text):
+    doc = nlp(resume_text)
+    sentences = [sent.text.strip() for sent in doc.sents if len(sent.text.strip()) > 10]
+    skill_sentences = []
+    for sent in sentences:
+        skills = extract_key_skills(sent)
+        score = len(skills) + (len(sent.split()) / 50)
+        skill_sentences.append((sent, score))
+    top_sentences = sorted(skill_sentences, key=lambda x: x[1], reverse=True)[:2]
+    return " ".join([sent for sent, score in top_sentences])
+
+def analyze_sentiment(resume_text):
+    blob = TextBlob(resume_text)
+    polarity = blob.sentiment.polarity
+    if polarity > 0.2:
+        return "Confident/Positive"
+    elif polarity < -0.1:
+        return "Passive/Negative"
+    else:
+        return "Neutral"
+
+def predict_job_fit(similarity_score, experience_years, matched_keywords_count):
+    features = np.array([[similarity_score, experience_years, matched_keywords_count]])
+    probability = job_fit_model.predict_proba(features)[0][1]
+    return round(probability * 100)
+
 def calculate_scores(job_desc, resume_text):
     job_doc = nlp(job_desc)
     resume_doc = nlp(resume_text)
-
-    
     similarity_score = min(round(job_doc.similarity(resume_doc) * 100), 100)
 
-   
     job_skills = set(extract_key_skills(job_desc))
     resume_skills = set(extract_key_skills(resume_text))
     matched_keywords = job_skills.intersection(resume_skills)
@@ -102,7 +150,7 @@ def generate_feedback(job_desc, resume_text, scores):
     missing_keywords = list(job_skills - resume_skills)[:3]
     unique_resume_skills = list(resume_skills - job_skills)[:3]
 
-    strengths, weaknesses, suggestions = [], [], []
+    strengths, weaknesses, suggestions, skill_gaps = [], [], [], []
 
     if scores["matchedKeywords"]:
         top_matches = " and ".join(scores["matchedKeywords"][:2])
@@ -134,10 +182,15 @@ def generate_feedback(job_desc, resume_text, scores):
     elif len(resume_text.split()) < 100:
         suggestions.append(f"Expand your resume (currently {len(resume_text.split())} words) with more details.")
 
+    for skill in missing_keywords:
+        resource = SKILL_RESOURCES.get(skill, "Search online for training")
+        skill_gaps.append(f"Learn '{skill}': {resource}")
+
     return {
         "strengths": strengths or ["Your resume has content but could highlight skills more clearly."],
         "weaknesses": weaknesses or [f"Minor gaps; consider adding skills like '{list(job_skills)[0] if job_skills else 'relevance'}'."],
-        "suggestions": suggestions or ["Add more specific details to align with the job."]
+        "suggestions": suggestions or ["Add more specific details to align with the job."],
+        "skillGaps": skill_gaps or ["No major skill gaps identified."]
     }
 
 @app.route("/screen", methods=["POST"])
@@ -156,11 +209,9 @@ def screen_resumes():
         if not filename.endswith((".txt", ".pdf")):
             continue
 
-        
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-      
         if filename.endswith(".txt"):
             text = extract_text_from_txt(filepath)
         elif filename.endswith(".pdf"):
@@ -169,13 +220,19 @@ def screen_resumes():
         if text and text.strip():
             scores = calculate_scores(job_desc, text)
             feedback = generate_feedback(job_desc, text, scores)
+            summary = summarize_resume(text)
+            tone = analyze_sentiment(text)
+            job_fit = predict_job_fit(scores["similarityScore"], scores["experienceYears"], len(scores["matchedKeywords"]))
             candidates.append({
                 "name": filename,
                 "similarityScore": scores["similarityScore"],
                 "atsScore": scores["atsScore"],
                 "matchedKeywords": scores["matchedKeywords"],
                 "experienceYears": scores["experienceYears"],
-                "feedback": feedback
+                "feedback": feedback,
+                "summary": summary,
+                "tone": tone,
+                "jobFit": job_fit
             })
 
     if not candidates:
