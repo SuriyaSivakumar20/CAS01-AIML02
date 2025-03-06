@@ -102,7 +102,7 @@ textarea:focus {
 }
 
 .file-upload.uploaded {
-    border-color: #2d6a4f; 
+    border-color: #2d6a4f;
 }
 
 .file-upload:hover {
@@ -137,7 +137,7 @@ input[type="file"] {
 }
 
 .file-list .file-item {
-    flex: 1 1 calc(25% - 10px); 
+    flex: 1 1 calc(25% - 10px);
     min-width: 150px;
     padding: 5px;
     background: #f9fafd;
@@ -242,6 +242,16 @@ button:hover {
     font-weight: 500;
 }
 
+.job-fit {
+    background: #fef3c7;
+    color: #d97706;
+    padding: 5px 12px;
+    border-radius: 12px;
+    font-size: 0.9em;
+    font-weight: 500;
+    margin-right: 10px;
+}
+
 .feedback-box {
     display: none;
     position: fixed;
@@ -307,16 +317,6 @@ button:hover {
     color: #6666cc;
 }
 
-.job-fit {
-    background: #fef3c7;
-    color: #d97706;
-    padding: 5px 12px;
-    border-radius: 12px;
-    font-size: 0.9em;
-    font-weight: 500;
-    margin-right: 10px;
-}
-
 .feedback-box .skill-gaps strong {
-    color: #d97706; 
+    color: #d97706;
 }

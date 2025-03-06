@@ -8,7 +8,6 @@ const feedbackBox = document.getElementById("feedbackBox");
 const resumeCount = document.getElementById("resumeCount");
 const fileUpload = document.querySelector(".file-upload");
 
-
 jobDescription.addEventListener("input", function () {
     document.getElementById("charCount").textContent = `${this.value.length}/1000 characters`;
     updateKeySkills(this.value);
@@ -16,7 +15,7 @@ jobDescription.addEventListener("input", function () {
 
 
 resumeFiles.addEventListener("change", function () {
-    fileList.innerHTML = ""; 
+    fileList.innerHTML = "";
     const files = Array.from(this.files);
     resumeCount.textContent = `${files.length} resumes uploaded`;
     fileUpload.classList.add("uploaded");

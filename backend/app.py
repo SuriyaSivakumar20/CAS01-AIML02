@@ -18,37 +18,42 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# Refined COMMON_SKILLS to focus on technical, actionable skills
 COMMON_SKILLS = {
     'javascript', 'python', 'java', 'sql', 'html', 'css', 'react', 'node', 'typescript',
     'aws', 'docker', 'git', 'agile', 'scrum', 'management', 'leadership', 'communication',
-    'experience', 'years', 'software', 'engineer', 'developer', 'data', 'analysis'
+    'data', 'analysis'  # Removed 'engineer', 'software', 'experience', 'years'
 }
 
 SKILL_RESOURCES = {
     "python": "Learn Python on Codecademy (https://www.codecademy.com/learn/learn-python-3)",
     "aws": "AWS Certification on Coursera (https://www.coursera.org/professional-certificates/aws-cloud-technology-consultant)",
     "sql": "SQL Basics on Khan Academy (https://www.khanacademy.org/computing/computer-programming/sql)",
-    "javascript": "JavaScript Tutorial on freeCodeCamp (https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/)"
+    "javascript": "JavaScript Tutorial on freeCodeCamp (https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/)",
+    "java": "Java Programming on Udemy (https://www.udemy.com/course/java-the-complete-java-developer-course/)",
+    "html": "HTML Crash Course on YouTube by Traversy Media (https://www.youtube.com/watch?v=UB1O30fR-EE)",
+    "css": "CSS Flexbox Tutorial on Scrimba (https://scrimba.com/learn/flexbox)",
+    "react": "React Official Tutorial (https://reactjs.org/tutorial/tutorial.html)",
+    "node": "Node.js Basics on Pluralsight (https://www.pluralsight.com/courses/node-js-getting-started)",
+    "typescript": "TypeScript for Beginners on Udemy (https://www.udemy.com/course/learn-typescript/)",
+    "docker": "Docker Mastery on Udemy (https://www.udemy.com/course/docker-mastery/)",
+    "git": "Git & GitHub Crash Course on YouTube by freeCodeCamp (https://www.youtube.com/watch?v=RGOj5yH7evk)",
+    "agile": "Agile Fundamentals on LinkedIn Learning (https://www.linkedin.com/learning/agile-foundations)",
+    "scrum": "Scrum Certification Prep on Coursera (https://www.coursera.org/learn/scrum-certification)",
+    "management": "Project Management Basics on PMI (https://www.pmi.org/learning/training-development)",
+    "leadership": "Leadership Skills on edX (https://www.edx.org/course/leadership-and-influence)",
+    "communication": "Effective Communication on Coursera (https://www.coursera.org/learn/communication-skills)",
+    "data": "Data Analysis with Python on Coursera (https://www.coursera.org/learn/data-analysis-python)",
+    "analysis": "Intro to Data Analysis on Udacity (https://www.udacity.com/course/intro-to-data-analysis--nd002)"
 }
 
-
 X_train = np.array([
-    [85, 5, 12], 
-    [60, 2, 5],   
-    [90, 7, 15],  
-    [45, 1, 3],   
-    [75, 4, 8],   
-    [30, 0, 2],    
-    [80, 3, 10],  
-    [55, 2, 4],    
-    [95, 6, 14],   
-    [70, 3, 7],    
-    [40, 1, 3],   
-    [65, 2, 6]     
+    [85, 5, 12], [60, 2, 5], [90, 7, 15], [45, 1, 3],
+    [75, 4, 8], [30, 0, 2], [80, 3, 10], [55, 2, 4],
+    [95, 6, 14], [70, 3, 7], [40, 1, 3], [65, 2, 6]
 ])
 y_train = np.array([1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0])
 job_fit_model = LogisticRegression().fit(X_train, y_train)
-
 
 def extract_text_from_pdf(filepath):
     try:
@@ -147,7 +152,7 @@ def generate_feedback(job_desc, resume_text, scores):
     resume_doc = nlp(resume_text.lower())
     job_skills = set(extract_key_skills(job_desc))
     resume_skills = set(extract_key_skills(resume_text))
-    missing_keywords = list(job_skills - resume_skills)[:3]
+    missing_keywords = [skill for skill in (job_skills - resume_skills) if skill in SKILL_RESOURCES][:3]  # Only skills with resources
     unique_resume_skills = list(resume_skills - job_skills)[:3]
 
     strengths, weaknesses, suggestions, skill_gaps = [], [], [], []
@@ -183,12 +188,12 @@ def generate_feedback(job_desc, resume_text, scores):
         suggestions.append(f"Expand your resume (currently {len(resume_text.split())} words) with more details.")
 
     for skill in missing_keywords:
-        resource = SKILL_RESOURCES.get(skill, "Search online for training")
+        resource = SKILL_RESOURCES[skill]  # Guaranteed to exist due to filter
         skill_gaps.append(f"Learn '{skill}': {resource}")
 
     return {
         "strengths": strengths or ["Your resume has content but could highlight skills more clearly."],
-        "weaknesses": weaknesses or [f"Minor gaps; consider adding skills like '{list(job_skills)[0] if job_skills else 'relevance'}'."],
+        "weaknesses": weaknesses or [f"Minor gaps; consider adding specific technical skills."],
         "suggestions": suggestions or ["Add more specific details to align with the job."],
         "skillGaps": skill_gaps or ["No major skill gaps identified."]
     }
