@@ -1,54 +1,225 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    background: #f3f3f3;
-    text-align: center;
+    font-family: 'Poppins', sans-serif;
+    background: #f7f9fc;
+    min-height: 100vh;
     padding: 20px;
 }
 
 .container {
-    max-width: 600px;
-    margin: auto;
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    max-width: 850px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    animation: fadeIn 0.5s ease-in-out;
 }
 
-textarea, input {
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+h2 {
+    color: #333333;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.6rem;
+    font-weight: 600;
+}
+
+.section {
+    margin-bottom: 25px;
+    transition: all 0.3s ease-in-out;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    color: #555555;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+textarea {
     width: 100%;
-    margin: 10px 0;
-    padding: 10px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
+    height: 120px;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    resize: vertical;
+    transition: border-color 0.3s ease-in-out;
+    font-size: 0.95rem;
+    background: #fafafa;
+}
+
+textarea:focus {
+    border-color: #a3bffa;
+    outline: none;
+}
+
+.char-count {
+    font-size: 0.85em;
+    color: #888888;
+    text-align: right;
+    margin-top: 5px;
+}
+
+.key-skills {
+    margin-top: 10px;
+    font-size: 0.9em;
+    color: #555555;
+    font-weight: 500;
+}
+
+.key-skills span {
+    background: #e6e9ff;
+    color: #6666cc;
+    padding: 4px 8px;
+    border-radius: 12px;
+    margin-right: 5px;
+    display: inline-block;
+    font-weight: 500;
+}
+
+.file-upload {
+    position: relative;
+    padding: 20px;
+    border: 2px dashed #e0e0e0;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+    background: #ffffff;
+}
+
+.file-upload:hover {
+    border-color: #a3bffa;
+    background: #f5f7ff;
+}
+
+input[type="file"] {
+    opacity: 0;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    cursor: pointer;
+}
+
+.file-list {
+    margin-top: 10px;
+    font-size: 0.9em;
+    color: #666666;
 }
 
 button {
-    background: #3498db;
-    color: white;
+    background: #a3bffa;
+    color: #ffffff;
     border: none;
-    padding: 10px 20px;
+    padding: 10px 25px;
+    border-radius: 20px;
     cursor: pointer;
-    border-radius: 5px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: background 0.3s, transform 0.2s;
 }
 
 button:hover {
-    background: #2980b9;
+    background: #8098f9;
+    transform: translateY(-2px);
 }
 
 #loading {
     display: none;
-    margin: 20px;
-    font-weight: bold;
+    color: #a3bffa;
+    font-weight: 600;
+    margin: 20px 0;
+    animation: pulse 1.5s infinite;
 }
 
-ul {
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+
+.candidate-list {
     list-style: none;
     padding: 0;
 }
 
-li {
-    background: #ecf0f1;
+.candidate-item {
+    background: #f9fafd;
+    color: #333333;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: transform 0.2s, background 0.3s;
+    cursor: pointer;
+}
+
+.candidate-item:hover {
+    transform: translateX(3px);
+    background: #eef2ff;
+}
+
+.candidate-details {
+    display: none;
     padding: 10px;
-    margin: 5px 0;
-    border-radius: 5px;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    margin-top: 5px;
+    font-size: 0.9em;
+    color: #555555;
+}
+
+.candidate-item.active .candidate-details {
+    display: block;
+}
+
+.score {
+    background: #b2f5ea;
+    color: #2d6a4f;
+    padding: 5px 12px;
+    border-radius: 12px;
+    font-size: 0.9em;
+    font-weight: 500;
+    margin-right: 10px;
+}
+
+.ats-score {
+    background: #d6bcfa;
+    color: #5a3e8b;
+    padding: 5px 12px;
+    border-radius: 12px;
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+.feedback {
+    margin-top: 8px;
+}
+
+.feedback strong {
+    color: #333333;
+}
+
+.feedback ul {
+    list-style-type: disc;
+    margin-left: 20px;
 }

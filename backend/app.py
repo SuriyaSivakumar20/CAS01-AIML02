@@ -1,57 +1,132 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
-import spacy
-import fitz  
-from sentence_transformers import SentenceTransformer, util
+import PyPDF2
+import docx
+import re
+from collections import Counter
 
 app = Flask(__name__)
-
-# Load AI Model
-nlp = spacy.load("en_core_web_sm")
-embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+CORS(app)  
 
 UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+ALLOWED_EXTENSIONS = {"pdf", "txt", "docx"}
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-def extract_text_from_pdf(pdf_path):
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+
+stop_words = set([
+    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from', 'has', 'he',
+    'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the', 'to', 'was', 'were', 'will', 'with'
+])
+
+
+common_skills = [
+    'javascript', 'python', 'java', 'sql', 'html', 'css', 'react', 'node', 'typescript',
+    'aws', 'docker', 'git', 'agile', 'scrum', 'management', 'leadership', 'communication',
+    'experience', 'years', 'software', 'engineer', 'developer', 'data', 'analysis'
+]
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def clean_text(text):
+    """ Preprocess text: lowercase, remove punctuation, and stopwords """
+    text = text.lower()
+    text = re.sub(r"[^\w\s]", "", text)  
+    words = text.split()
+    return " ".join([word for word in words if word not in stop_words])
+
+def extract_text_from_file(file_path):
+    """ Extract text from PDF, TXT, or DOCX """
     text = ""
-    doc = fitz.open(pdf_path)
-    for page in doc:
-        text += page.get_text("text") + " "
-    return text.strip()
+    extension = file_path.rsplit(".", 1)[1].lower()
+
+    if extension == "txt":
+        with open(file_path, "r", encoding="utf-8") as f:
+            text = f.read()
+
+    elif extension == "pdf":
+        with open(file_path, "rb") as f:
+            pdf_reader = PyPDF2.PdfReader(f)
+            for page in pdf_reader.pages:
+                text += page.extract_text() + " "
+
+    elif extension == "docx":
+        doc = docx.Document(file_path)
+        for para in doc.paragraphs:
+            text += para.text + " "
+
+    return clean_text(text)
 
 def calculate_similarity(job_desc, resume_text):
-    job_embedding = embed_model.encode(job_desc, convert_to_tensor=True)
-    resume_embedding = embed_model.encode(resume_text, convert_to_tensor=True)
-    score = util.pytorch_cos_sim(job_embedding, resume_embedding).item() * 100
-    return round(score, 2)
+    """ Compute similarity score between job description and resume """
+    job_words = job_desc.split()
+    resume_words = resume_text.split()
 
-@app.route("/screen_resumes", methods=["POST"])
+    job_word_count = Counter(job_words)
+    resume_word_count = Counter(resume_words)
+
+    common_words = set(job_words) & set(resume_words)
+
+    if not common_words:
+        return 0 
+
+    match_score = sum(min(job_word_count[word], resume_word_count[word]) for word in common_words)
+    similarity = round((match_score / max(len(job_words), 1)) * 100, 2)  
+    
+    return similarity
+
+def extract_experience(text):
+    """ Extract years of experience from text """
+    experience_regex = re.findall(r"(\d+)\s*(years|yrs|year)", text)
+    years = [int(match[0]) for match in experience_regex if match[0].isdigit()]
+    return max(years) if years else 0  
+
+@app.route("/screen", methods=["POST"])
 def screen_resumes():
-    job_desc = request.form.get("job_description")
-    if not job_desc:
-        return jsonify({"error": "Job description is required"}), 400
+    if "jobDescription" not in request.form or "resumes" not in request.files:
+        return jsonify({"error": "Missing job description or resumes"}), 400
 
-    uploaded_files = request.files.getlist("resumes")
-    if not uploaded_files:
-        return jsonify({"error": "No resumes uploaded"}), 400
+    job_desc = clean_text(request.form["jobDescription"])
+    files = request.files.getlist("resumes")
+
+    if not job_desc:
+        return jsonify({"error": "Job description is empty"}), 400
 
     candidates = []
-    for file in uploaded_files:
-        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-        file.save(file_path)
+    
+    for file in files:
+        if file and allowed_file(file.filename):
+            file_path = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
+            file.save(file_path)
+            
+            resume_text = extract_text_from_file(file_path)
+            if not resume_text:
+                continue
 
-        if file.filename.endswith(".pdf"):
-            resume_text = extract_text_from_pdf(file_path)
-        else:
-            with open(file_path, "r", encoding="utf-8") as f:
-                resume_text = f.read()
+            similarity_score = calculate_similarity(job_desc, resume_text)
+            experience_years = extract_experience(resume_text)
+            
+            matched_keywords = [word for word in common_skills if word in resume_text]
 
-        score = calculate_similarity(job_desc, resume_text)
-        candidates.append({"name": file.filename, "score": score})
+            ats_score = round(similarity_score * 0.6 + experience_years * 0.3 + len(matched_keywords) * 0.1, 2)
 
-    candidates.sort(key=lambda x: x["score"], reverse=True)  
+            candidates.append({
+                "name": file.filename,
+                "similarityScore": similarity_score,
+                "atsScore": ats_score,
+                "experienceYears": experience_years,
+                "matchedKeywords": matched_keywords
+            })
 
+    if not candidates:
+        return jsonify({"message": "No suitable candidates found."}), 200
+
+    candidates.sort(key=lambda x: (-x["atsScore"], -x["similarityScore"]))
+    
     return jsonify({"candidates": candidates})
 
 if __name__ == "__main__":
