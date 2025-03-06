@@ -4,12 +4,19 @@ import PyPDF2
 import re
 from werkzeug.utils import secure_filename
 import spacy
+import os
 
 app = Flask(__name__)
-CORS(app) 
+CORS(app)  
 
 
 nlp = spacy.load("en_core_web_lg")
+
+
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)  
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
 COMMON_SKILLS = {
@@ -18,15 +25,24 @@ COMMON_SKILLS = {
     'experience', 'years', 'software', 'engineer', 'developer', 'data', 'analysis'
 }
 
-def extract_text_from_pdf(file):
+def extract_text_from_pdf(filepath):
     try:
-        reader = PyPDF2.PdfReader(file)
-        text = ""
-        for page in reader.pages:
-            text += page.extract_text() + " "
-        return text.strip()
+        with open(filepath, 'rb') as file:
+            reader = PyPDF2.PdfReader(file)
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text() + " "
+            return text.strip()
     except Exception as e:
         print(f"Error parsing PDF: {e}")
+        return ""
+
+def extract_text_from_txt(filepath):
+    try:
+        with open(filepath, 'r', encoding='utf-8') as file:
+            return file.read().strip()
+    except Exception as e:
+        print(f"Error reading TXT: {e}")
         return ""
 
 def extract_key_skills(text):
@@ -44,10 +60,10 @@ def calculate_scores(job_desc, resume_text):
     job_doc = nlp(job_desc)
     resume_doc = nlp(resume_text)
 
-  
+    
     similarity_score = min(round(job_doc.similarity(resume_doc) * 100), 100)
 
-    
+   
     job_skills = set(extract_key_skills(job_desc))
     resume_skills = set(extract_key_skills(resume_text))
     matched_keywords = job_skills.intersection(resume_skills)
@@ -137,12 +153,18 @@ def screen_resumes():
 
     for file in files:
         filename = secure_filename(file.filename)
-        if filename.endswith(".txt"):
-            text = file.read().decode("utf-8")
-        elif filename.endswith(".pdf"):
-            text = extract_text_from_pdf(file)
-        else:
+        if not filename.endswith((".txt", ".pdf")):
             continue
+
+        
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+      
+        if filename.endswith(".txt"):
+            text = extract_text_from_txt(filepath)
+        elif filename.endswith(".pdf"):
+            text = extract_text_from_pdf(filepath)
 
         if text and text.strip():
             scores = calculate_scores(job_desc, text)
