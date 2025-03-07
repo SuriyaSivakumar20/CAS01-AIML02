@@ -18,11 +18,11 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Refined COMMON_SKILLS to focus on technical, actionable skills
+
 COMMON_SKILLS = {
     'javascript', 'python', 'java', 'sql', 'html', 'css', 'react', 'node', 'typescript',
     'aws', 'docker', 'git', 'agile', 'scrum', 'management', 'leadership', 'communication',
-    'data', 'analysis'  # Removed 'engineer', 'software', 'experience', 'years'
+    'data', 'analysis'
 }
 
 SKILL_RESOURCES = {
@@ -152,7 +152,7 @@ def generate_feedback(job_desc, resume_text, scores):
     resume_doc = nlp(resume_text.lower())
     job_skills = set(extract_key_skills(job_desc))
     resume_skills = set(extract_key_skills(resume_text))
-    missing_keywords = [skill for skill in (job_skills - resume_skills) if skill in SKILL_RESOURCES][:3]  # Only skills with resources
+    missing_keywords = [skill for skill in (job_skills - resume_skills) if skill in SKILL_RESOURCES][:3]  
     unique_resume_skills = list(resume_skills - job_skills)[:3]
 
     strengths, weaknesses, suggestions, skill_gaps = [], [], [], []
@@ -188,7 +188,7 @@ def generate_feedback(job_desc, resume_text, scores):
         suggestions.append(f"Expand your resume (currently {len(resume_text.split())} words) with more details.")
 
     for skill in missing_keywords:
-        resource = SKILL_RESOURCES[skill]  # Guaranteed to exist due to filter
+        resource = SKILL_RESOURCES[skill]  
         skill_gaps.append(f"Learn '{skill}': {resource}")
 
     return {
