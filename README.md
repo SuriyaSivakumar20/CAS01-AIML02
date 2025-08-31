@@ -1,67 +1,47 @@
-Team ID: CAS01
+# 📄 Resume-Screener
+# AI-Powered Resume Screening System 🚀
 
-PS ID: AIML02
+Building an **AI-driven Resume Screener** that helps recruiters quickly filter candidates by parsing resumes, analyzing job relevance, and calculating **ATS (Applicant Tracking System) Scores**. 🤖✨  
 
-Problem Statement:
+---
 
-Recruiters often struggle with manually screening thousands of resumes, leading to inefficiencies, bias, and inconsistent candidate selection. The Automated Resume Screening System leverages AI and NLP to parse, analyze, and rank resumes based on job descriptions, ensuring a faster, unbiased, and more accurate hiring process. By using BERT embeddings and machine learning models, the system enhances candidate-job matching, reduces hiring time, and improves recruitment efficiency.
+## 🌟 Features
+- 📂 **Resume Upload**: Users can upload resumes in PDF/DOCX format.  
+- 🧠 **ATS Score Calculation**: AI evaluates resumes against job descriptions.  
+- 🔍 **Keyword Matching**: Detects missing skills/keywords that reduce selection chances.  
+- ⚡ **Ranking Candidates**: Automatically ranks applicants from best to least fit.  
+- 📊 **Detailed Feedback**: Provides a score breakdown and suggestions for improvement.  
+- ✅ **Correct Candidate Selection**: Highlights the most suitable profiles.  
 
+---
 
-Approach for Automated Resume Screening System
+## 📸 Project Overview
+![Resume Screener Animation](https://media.giphy.com/media/3o6Zt6ML6BklcajjsA/giphy.gif)
 
-Resume Parsing & Extraction:
+---
 
-Accepts resumes in PDF, DOCX, and image formats.
-Uses PyPDF2, pdfplumber, docx2txt, and Tesseract OCR to extract text.
-Identifies and structures key information like name, contact details, skills, education, and experience using spaCy-based NLP models.
+## 🛠️ Tech Stack
+- **Programming Language**: ![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)  
+- **Framework**: ![Flask](https://img.shields.io/badge/Flask-000000?style=flat&logo=flask&logoColor=white) for backend API  
+- **NLP Toolkit**: ![spaCy](https://img.shields.io/badge/spaCy-09A3D5?style=flat&logo=spacy&logoColor=white) for resume parsing  
+- **Machine Learning**: ![Scikit-learn](https://img.shields.io/badge/Scikit--Learn-F7931E?style=flat&logo=scikit-learn&logoColor=white) for similarity scoring  
+- **Frontend**: HTML, CSS, JavaScript for user interaction  
+- **Database**: SQLite / MongoDB for storing candidates & results  
 
+---
 
-Job Description Processing:
+## 🎉 How It Works
+1. **Upload Resume**: User uploads a PDF/DOCX file.  
+2. **Resume Parsing**: NLP extracts skills, education, and work experience.  
+3. **Job Matching**: System compares resume content with job description.  
+4. **ATS Score**: Generates a score (0–100) based on keyword relevance & formatting.  
+5. **Candidate Ranking**: Displays top candidates and highlights the best fit.  
 
-Accepts job descriptions as input via API.
-Uses NLP techniques to extract required skills, qualifications, and experience.
+---
 
+## 🚀 Quick Start  
 
-Feature Extraction & Embeddings:
-
-Converts both resumes and job descriptions into numerical vectors using BERT embeddings.
-Applies TF-IDF, word embeddings, and contextual language models for feature representation.
-
-
-Resume Matching & Ranking:
-
-Computes the cosine similarity between resumes and job descriptions.
-Uses machine learning models (scikit-learn, BERT) to rank resumes based on relevance.
-
-
-Storage & Fast Retrieval:
-
-Stores structured resume data in MongoDB.
-Uses Elasticsearch for quick searches and filtering of resumes based on recruiter preferences.
-
-
-Tools Used in Automated Resume Screening System
-
-1️ Programming & Development
-Python – Main programming language
-Flask / FastAPI – Backend API development
-
-2️ Natural Language Processing (NLP)
-spaCy – Named Entity Recognition (NER) for extracting details
-BERT (Bidirectional Encoder Representations from Transformers) – Resume and job description similarity matching
-scikit-learn – Machine learning models for ranking resumes
-TF-IDF / Word Embeddings – Feature extraction
-
-3️ Resume & Job Description Parsing
-PyPDF2 / pdfplumber – Extract text from PDFs
-docx2txt – Extract text from DOCX files
-Tesseract OCR – Extract text from images (scanned resumes)
-
-4️ Data Storage & Search
-PostgreSQL / MongoDB – Database for storing resumes and job descriptions
-Elasticsearch – Fast search and retrieval of resumes
-
-5️ Deployment & Version Control
-Docker – Containerization for easy deployment
-GitHub / GitLab – Version control for managing project updates
-Postman – API testing and validation
+### Clone the Repository
+```bash
+git clone https://github.com/your-username/resume-screener.git
+cd resume-screener
